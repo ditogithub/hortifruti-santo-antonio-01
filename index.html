@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Catálogo Hortifruti Santo Antônio</title>
+
+<!-- Firebase (compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+
+<style>
+:root{
+  --accent:#27ae60;
+  --blue:#2d9cdb;
+  --danger:#e74c3c;
+  --card:#ffffff;
+  --muted:#666;
+}
+body { font-family: Arial, sans-serif; margin:0; background:#f7f7f7; color:#222; }
+header {
+  background: linear-gradient(90deg, #27ae60, #2ecc71);
+  color: white; padding:8px 14px; box-shadow:0 3px 8px rgba(0,0,0,0.08);
+  position: sticky; top:0; z-index:1000; display:flex; gap:12px; align-items:center; justify-content:space-between;
+}
+#searchContainer{ display:flex; gap:10px; align-items:center; width:100%; max-width:1200px; margin:0 auto; }
+#searchInput{ flex:1; max-width:360px; padding:6px 8px; border-radius:6px; border:1px solid rgba(0,0,0,0.12); }
+#adminLink{ background:rgba(0,0,0,0.2); color:#fff; padding:6px 10px; border-radius:6px; text-decoration:none; font-weight:600; }
+#btnOpenCart{ background:rgba(255,255,255,0.12); color:#fff; padding:6px 10px; border-radius:6px; border:0; cursor:pointer; font-weight:700; }
+.page { padding:18px; max-width:1200px; margin:0 auto; }
+.layout-coluna{ display:flex; flex-direction:column; gap:14px; align-items:center; }
+.card{ background:var(--card); border-radius:10px; padding:14px; width:95%; max-width:1000px; box-shadow:0 6px 18px rgba(0,0,0,0.04); position:relative; }
+.products{ display:flex; flex-wrap:wrap; gap:12px; justify-content:center; }
+.product{ width:180px; background:#fafafa; border:1px solid #eee; border-radius:8px; padding:8px; text-align:center; display:flex; flex-direction:column; gap:8px; }
+.product img{ width:100%; height:110px; object-fit:cover; border-radius:6px; }
+.product .meta{ flex:1; font-size:13px; color:var(--muted); }
+.product .price{ font-weight:700; font-size:14px; }
+.product .controls{ display:flex; gap:6px; align-items:center; justify-content:center; flex-direction:column; }
+.product select, .product input[type="number"]{ width:100%; padding:6px; border-radius:6px; border:1px solid #ddd; box-sizing:border-box; }
+.btn{ border:0; padding:8px 10px; border-radius:8px; cursor:pointer; font-weight:600; }
+.btn-add{ background:var(--accent); color:#fff; width:100%; }
+.cart-items{ display:flex; flex-direction:column; gap:10px; margin-top:8px; max-height:48vh; overflow:auto; padding-right:6px; }
+.cart-item{ display:flex; gap:10px; align-items:center; background:#f8f8f8; padding:8px; border-radius:8px; }
+.cart-item img{ width:64px; height:64px; object-fit:cover; border-radius:6px; }
+.cart-item .info{ flex:1; font-size:14px; }
+.cart-item .info small{ display:block; color:var(--muted); font-size:12px; }
+.remove-btn{ background:var(--danger); color:white; border:0; padding:6px 8px; border-radius:6px; cursor:pointer; }
+.cart-actions{ display:flex; gap:10px; justify-content:center; margin-top:12px; flex-wrap:wrap; }
+.total{ text-align:right; font-weight:700; font-size:18px; margin-top:8px; }
+.pix-area{ text-align:center; margin-top:12px; }
+.small{ color:var(--muted); font-size:13px; }
+.pix-copy-actions{ display:flex; gap:8px; margin-top:8px; justify-content:center; }
+
+.client-form { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+.client-form input, .client-form textarea { padding:8px; border-radius:6px; border:1px solid #ddd; width:100%; box-sizing:border-box; }
+.client-form .col { flex:1; min-width:200px; }
+
+.catalog-block {
+  position:absolute;
+  inset:0;
+  background: rgba(255,255,255,0.95);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  border-radius:10px;
+  flex-direction:column;
+  gap:8px;
+  text-align:center;
+  z-index:50;
+}
+.catalog-block .msg { font-weight:700; color:var(--danger); }
+
+/* modal */
+.modal-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:flex-start; justify-content:center; padding:40px 12px; z-index:2000; }
+.modal{ background:#fff; border-radius:10px; width:100%; max-width:900px; padding:18px; box-shadow:0 10px 40px rgba(0,0,0,0.25); max-height:85vh; overflow:auto; }
+.admin-row{ display:flex; align-items:center; gap:12px; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0; }
+.admin-row .meta{ flex:1; }
+.admin-controls{ display:flex; gap:8px; }
+
+@media (max-width:900px){
+  .product{ width:48%; }
+  header{ padding:10px; flex-direction:column; align-items:stretch; gap:8px; }
+  #searchContainer{ max-width:100%; }
+}
+
+.btn-add.flash {
+  animation: flashAnim 0.4s ease-out;
+}
+
+@keyframes flashAnim {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.15); background:#4caf50; color:#fff; }
+  100% { transform: scale(1); }
+}
+
+</style>
+</head>
+<body>
+<header>
+  <div id="searchContainer">
+    <input id="searchInput" placeholder="🔍 Pesquisar produtos..." />
+    <a href="#" id="adminLink">Admin</a>
+    <button id="btnOpenCart">Carrinho</button>
+  </div>
+</header>
+
+<main class="page">
+<div class="layout-coluna">
+
+  <!-- Produtos / catálogo -->
+  <div class="card" id="catalogCard">
+    <h2 style="text-align:center;margin:0 0 8px 0;">Produtos</h2>
+    <div id="productsList" class="products"></div>
+
+    <!-- bloco mostrado quando vendas estão bloqueadas -->
+    <div id="catalogBlocked" class="catalog-block" style="display:none;">
+      <div class="msg">⚠️ As vendas estão temporariamente bloqueadas. Volte mais tarde.</div>
+      <div class="small">No painel admin você pode alterar o status para liberar as vendas.</div>
+    </div>
+  </div>
+
+  <!-- Carrinho -->
+  <div class="card" id="cartCard" style="display:none;">
+    <h2 style="text-align:center;margin:0 0 8px 0;">Orçamento</h2>
+
+    <div class="client-form">
+      <div class="col"><input id="clientName" placeholder="Nome"></div>
+      <div class="col"><input id="clientPhone" placeholder="Telefone"></div>
+      <div class="col" style="flex-basis:100%"><textarea id="clientAddress" rows="2" placeholder="Endereço"></textarea></div>
+      <div class="col" style="flex-basis:100%; display:flex; gap:8px; align-items:center;">
+        <input id="clientLocation" placeholder="Localização (link do Maps)" style="flex:1;">
+        <button class="btn" style="background:var(--blue); color:#fff;" id="btnUseLocation">📍 Usar minha localização</button>
+      </div>
+    </div>
+
+    <div id="cartItems" class="cart-items">
+      <div class="small">Nenhum item ainda.</div>
+    </div>
+
+    <div class="total" id="cartTotal">Total: R$ 0,00</div>
+
+    <div class="cart-actions">
+      <button class="btn" style="background:#e74c3c;color:#fff" onclick="limparCarrinho()">🗑️ Limpar carrinho</button>
+      <button class="btn" style="background:#25d366;color:#fff" onclick="enviarWhats()">📲 Enviar pelo WhatsApp</button>
+      <button class="btn" style="background:var(--blue);color:#fff" onclick="continuarComprando()">➡️ Continuar comprando</button>
+    </div>
+
+    <!-- PIX opção 2 -->
+    <div class="pix-area" id="pixArea">
+      <h3 style="margin:12px 0 6px 0;">Pagamento PIX</h3>
+      <div class="small">Chave PIX: <b id="pixKeyDisplay">--</b></div>
+      <div style="margin-top:8px;">
+        <textarea id="pixPayload" readonly rows="3" style="width:100%; margin-top:6px; padding:6px; border-radius:6px; border:1px solid #ddd;"></textarea>
+        <button class="btn" id="btnCopyPayload" style="margin-top:6px; background:var(--blue); color:#fff;">📋 Copiar código PIX</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+</main>
+
+<script>
+// =========================
+// FIREBASE (compat) CONFIG
+// =========================
+const firebaseConfig = {
+  apiKey: "AIzaSyDjzWfLJ5NbmD2MlfycN0FJc3UnvyeCX9s",
+  authDomain: "catalogo-hortifruti.firebaseapp.com",
+  projectId: "catalogo-hortifruti",
+  storageBucket: "catalogo-hortifruti.firebasestorage.app",
+  messagingSenderId: "38002725935",
+  appId: "1:38002725935:web:91b94df5051a6317f2a2da"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// =========================
+// CONTROLE DE VENDAS (Firestore)
+// =========================
+
+// Lê o status atual
+async function getSalesStatus() {
+  const docRef = db.collection('config').doc('controle');
+  const snap = await docRef.get();
+  if (!snap.exists) return true; // se não existir, considera liberado
+  return snap.data().vendasLiberadas;
+}
+
+// Atualiza o status
+async function setSalesStatus(status) {
+  await db.collection('config').doc('controle').set(
+    { vendasLiberadas: status },
+    { merge: true }
+  );
+}
+
+
+// =========================
+// LOJISTA / PIX / WHATSAPP
+// =========================
+const rawPixPhone = 'ff62f06d-a004-4964-9d13-49abf0b0ba57'; // removido 55
+document.getElementById('pixKeyDisplay').innerText = rawPixPhone;
+const sellerPhone = rawPixPhone;
+const merchantName = 'RICARDO DOS SANTOS MACHADO';
+const merchantCity = 'IGARASSU';
+
+// =========================
+// UTILIDADES
+// =========================
+let cart = JSON.parse(localStorage.getItem('cart_v2') || '[]');
+function saveCart(){ localStorage.setItem('cart_v2', JSON.stringify(cart)); }
+function escapeHtml(s){ return String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;'); }
+function formatBRL(v){ return Number(v||0).toLocaleString('pt-BR',{style:'currency', currency:'BRL'}); }
+function calcTotal(){ return cart.reduce((s,it)=> s + (Number(it.unitPrice||0) * Number(it.qty||0)), 0); }
+
+// =========================
+
+
+// =========================
+// CRC16 e buildPixEMV
+// =========================
+function crc16(str){ const buf = new TextEncoder().encode(str); let crc = 0xFFFF; for(let i=0;i<buf.length;i++){crc ^= (buf[i]&0xFF)<<8;for(let j=0;j<8;j++){crc=(crc&0x8000)?((crc<<1)^0x1021)&0xFFFF:(crc<<1)&0xFFFF;}} return crc.toString(16).toUpperCase().padStart(4,'0'); }
+function buildField(id,value){ const v=String(value??''); return String(id).padStart(2,'0') + String(v.length).padStart(2,'0') + v; }
+function buildPixEMV(key, merchantName, merchantCity, amount){
+  const mName = String(merchantName||'').toUpperCase().slice(0,25);
+  const mCity = String(merchantCity||'').toUpperCase().slice(0,15);
+
+  // GUI PIX
+  const gui = 'BR.GOV.BCB.PIX';
+  const guiField = buildField(0, gui);
+
+  // Chave PIX (qualquer — telefone, email, aleatória)
+  const keyField = buildField(1, key);
+
+  // Merchant Account Information (Campo 26)
+  const maiSub = guiField + keyField;
+  const merchantAccountInfo = '26' + String(maiSub.length).padStart(2,'0') + maiSub;
+
+  // Início do payload
+  let payload = '';
+  payload += buildField(0, '01');  // Payload Format Indicator
+  payload += buildField(1, '12');  // Merchant Category Code (Padrão PIX)
+  payload += merchantAccountInfo;
+  payload += '52040000';           // MCC
+  payload += '5303986';            // Moeda BRL
+
+  // Valor (opcional)
+  if (amount !== undefined && amount !== null && Number(amount) > 0) {
+    const amt = Number(amount).toFixed(2);
+    payload += buildField(54, amt);
+  }
+
+  payload += '5802BR';  // País
+  payload += buildField(59, mName);   // Nome
+  payload += buildField(60, mCity);   // Cidade
+
+  // TXID (Campo 62/05)
+  const txid = '5D2AYCyokx'; // coloque qualquer TXID ou gere automaticamente
+  const txidField = buildField(5, txid);
+  payload += '62' + String(txidField.length).padStart(2,'0') + txidField;
+
+  // CRC16 (Campo 63)
+  const crcInput = payload + '6304';
+  const checksum = crc16(crcInput);
+
+  return crcInput + checksum;
+}
+
+
+// =========================
+// RENDER PRODUTOS
+// =========================
+  // =========================
+// RENDER PRODUTOS
+// =========================
+// =========================
+// PESQUISA DE PRODUTOS
+// =========================
+document.getElementById('searchInput').addEventListener('input', () => {
+  carregarProdutos(); // recarrega os produtos a cada letra digitada
+});
+
+// =========================
+// CARREGAR PRODUTOS
+// =========================
+async function carregarProdutos() {
+
+  // 1) Lê status global de vendas
+  const cfgSnap = await db.collection('config').doc('controle').get();
+  const vendasLiberadas = cfgSnap.exists ? cfgSnap.data().vendasLiberadas : true;
+
+  // 2) Se vendas estão bloqueadas → mostra aviso e sai
+  if (!vendasLiberadas) {
+    const container = document.getElementById('productsList');
+    container.innerHTML = `
+      <div class="catalog-block">
+        <h2>⚠️ Vendas temporariamente indisponíveis</h2>
+        <p>Retornaremos em breve!</p>
+      </div>
+    `;
+    return;
+  }
+
+  // 3) Continua normalmente
+  const status = await getSalesStatus();
+  const snap = await db.collection('produtos').get();
+  const container = document.getElementById('productsList');
+  container.innerHTML = '';
+
+  const searchTerm = document.getElementById('searchInput').value.toLowerCase(); // pega valor digitado
+
+  snap.forEach(doc => {
+
+    const pRaw = doc.data() || {};
+    const p = Object.assign({}, pRaw);
+    p._id = doc.id;
+
+    // Filtra pelo nome do produto (pesquisa)
+    if (!p.name.toLowerCase().includes(searchTerm)) return;
+
+    // Normalização do campo active
+    const val = p.active;
+    const isExplicitlyFalse = (val === false || val === 'false' || val === 0 || val === '0');
+    const isExplicitlyTrue  = (val === true  || val === 'true'  || val === 1 || val === '1');
+    const isActive = isExplicitlyTrue || (!isExplicitlyFalse && val !== undefined) || (val === undefined);
+    if (!isActive) return;
+
+    const priceUnit = (p.priceUnit != null && !isNaN(Number(p.priceUnit)) && p.priceUnit !== '') ? Number(p.priceUnit) : null;
+    const priceKg   = (p.priceKg   != null && !isNaN(Number(p.priceKg))   && p.priceKg !== '') ? Number(p.priceKg) : null;
+    const precoTexto = priceUnit ?? priceKg ?? 0;
+
+    const card = document.createElement('div');
+    card.className = 'product';
+
+    const imgSrc = escapeHtml(p.img || 'https://via.placeholder.com/400x300?text=Sem+imagem');
+    const nameTxt = escapeHtml(p.name || 'Produto');
+    const descTxt = escapeHtml(p.desc || '');
+    const priceTxt = formatBRL(precoTexto);
+
+    card.innerHTML = `
+      <img src="${imgSrc}">
+      <div class="meta"><strong>${nameTxt}</strong>
+        <div style="margin-top:6px;font-size:13px;color:var(--muted)">${descTxt}</div>
+      </div>
+      <div class="price">${priceTxt}</div>
+      <div class="controls">
+        <select id="mode_${p._id}">
+          ${priceUnit!=null?'<option value="unit">Unid</option>':''}
+          ${priceKg!=null?'<option value="kg">Kg</option>':''}
+        </select>
+        <input id="qty_${p._id}" type="number" min="0.01" step="0.01" value="1">
+        <button class="btn btn-add" id="add_${p._id}">➕ Adicionar</button>
+      </div>
+    `;
+
+    container.appendChild(card);
+
+    const sel = document.getElementById(`mode_${p._id}`);
+    const addBtn = document.getElementById(`add_${p._id}`);
+    const qtyInput = document.getElementById(`qty_${p._id}`);
+
+    if (!sel || sel.options.length === 0) {
+      if (addBtn) {
+        addBtn.disabled = true;
+        addBtn.textContent = 'Sem preço';
+        addBtn.style.opacity = 0.6;
+      }
+    }
+
+    if (status === 'bloqueado' && addBtn) {
+      addBtn.disabled = true;
+      addBtn.textContent = 'Vendas Bloqueadas';
+      addBtn.style.opacity = 0.6;
+    }
+
+    if (addBtn) {
+      addBtn.addEventListener('click', async () => {
+        if (addBtn.disabled) {
+          alert('No momento as vendas estão bloqueadas.');
+          return;
+        }
+
+        const selectedMode = sel ? sel.value : (priceUnit != null ? 'unit' : 'kg');
+        const qty = Number(qtyInput ? qtyInput.value : 1) || 1;
+        const unitPrice = (selectedMode === 'kg') ? priceKg : priceUnit;
+
+        if (unitPrice == null) {
+          alert('Preço inválido.');
+          return;
+        }
+
+        const snapData = (await db.collection('produtos').doc(p._id).get()).data();
+        const stock = snapData.stock ?? 0;
+
+        if (qty > stock) {
+          alert(`Só temos ${stock} unidades disponíveis em estoque.`);
+          return; 
+        }
+
+        addToCart({
+          id: p._id,
+          name: p.name || 'Produto',
+          img: p.img || 'https://via.placeholder.com/400x300?text=Sem+imagem',
+          mode: selectedMode,
+          qty,
+          unitPrice: Number(unitPrice)
+        });
+
+        addBtn.classList.add('flash');
+        setTimeout(() => addBtn.classList.remove('flash'), 400);
+      });
+    }
+
+  }); // fecha snap.forEach
+} // fecha carregarProdutos()
+
+
+
+// =========================
+// CART FUNCTIONS 
+// =========================
+async function addToCart(item) {
+  const snapData = (await db.collection('produtos').doc(item.id).get()).data();
+  const stock = snapData.stock ?? 0;
+
+  const idx = cart.findIndex(c => c.id === item.id && c.mode === item.mode);
+
+  if (idx >= 0) {
+    const novaQtd = cart[idx].qty + item.qty;
+
+    if (novaQtd > stock) {
+      alert(`Estoque insuficiente! Você já tem ${cart[idx].qty} no carrinho e só existem ${stock} unidades.`);
+      return;
+    }
+
+    cart[idx].qty = novaQtd;
+  } else {
+    if (item.qty > stock) {
+      alert(`Só temos ${stock} unidades disponíveis em estoque.`);
+      return;
+    }
+    cart.push(item);
+  }
+
+  saveCart();
+  renderCart();
+}
+
+function renderCart(){
+  const container=document.getElementById('cartItems'); container.innerHTML='';
+  if(cart.length===0){ container.innerHTML='<div class="small">Nenhum item ainda.</div>'; } else{
+    cart.forEach(it=>{
+      const div=document.createElement('div'); div.className='cart-item';
+      div.innerHTML=`<img src="${escapeHtml(it.img)}"><div class="info"><strong>${escapeHtml(it.name)}</strong><small>${it.mode}</small><small>Qtd: ${it.qty}</small><small>Preço unit: ${formatBRL(it.unitPrice)}</small><small>Total: ${formatBRL(it.unitPrice * it.qty)}</small></div><button class="remove-btn">❌</button>`;
+      div.querySelector('.remove-btn').addEventListener('click',()=>{ cart=cart.filter(c=>c!==it); saveCart(); renderCart(); });
+      container.appendChild(div);
+    });
+  }
+  document.getElementById('cartTotal').innerText='Total: '+formatBRL(calcTotal());
+  const pixEl=document.getElementById('pixPayload');
+  pixEl.value=buildPixEMV(rawPixPhone, merchantName, merchantCity, calcTotal());
+}
+function limparCarrinho(){ if(confirm('Deseja limpar o carrinho?')){ cart=[]; saveCart(); renderCart(); } }
+function enviarWhats(){ if(cart.length===0){ alert('Carrinho vazio!'); return; } const name=document.getElementById('clientName').value; const phone=document.getElementById('clientPhone').value; const address=document.getElementById('clientAddress').value; const location=document.getElementById('clientLocation').value; let msg='📋 *Orçamento Hortifruti Santo Antônio*%0A'; cart.forEach(it=>{ msg+=`\n*${escapeHtml(it.name)}* (${it.mode}) - ${it.qty} x ${formatBRL(it.unitPrice)} = ${formatBRL(it.unitPrice*it.qty)}`; }); msg+=`\n*Total:* ${formatBRL(calcTotal())}\n\n*Cliente:* ${escapeHtml(name)}\n*Telefone:* ${escapeHtml(phone)}\n*Endereço:* ${escapeHtml(address)}\n*Localização:* ${escapeHtml(location)}`; window.open(`https://wa.me/${sellerPhone}?text=${msg}`); }
+function continuarComprando(){ document.getElementById('cartCard').style.display='none'; document.getElementById('catalogCard').style.display='block'; }
+
+// =========================
+// ADMIN PANEL
+// =========================
+const ADMIN_PASSWORD = '1234';
+async function renderAdminProducts(){
+  const pwd=prompt('Informe a senha do painel admin:');
+  if(pwd!==ADMIN_PASSWORD){ alert('Senha incorreta!'); return; }
+  const snap = await db.collection('produtos').get();
+  const container = document.createElement('div');
+  container.id='adminProductsList';
+  container.style.display='flex'; container.style.flexDirection='column'; container.style.gap='8px';
+  snap.forEach(doc=>{
+    const p=doc.data(); p._id=doc.id;
+    const row=document.createElement('div'); row.className='admin-row';
+    row.innerHTML=`
+      <div class="meta"><strong>${escapeHtml(p.name)}</strong><br><small>${escapeHtml(p.desc)}</small><br><small>R$${p.priceUnit||''} / unidade, R$${p.priceKg||''} / kg</small></div>
+      <div class="admin-controls">
+        <button class="btn" id="btnEdit_${p._id}">✏️ Editar</button>
+        <button class="btn" id="btnToggle_${p._id}">${p.active?'🟢 Ativado':'🔴 Desativado'}</button>
+      </div>
+    `;
+    container.appendChild(row);
+
+    const btnEdit=row.querySelector(`#btnEdit_${p._id}`);
+    btnEdit.addEventListener('click', async () => {
+  const snapRef = db.collection('produtos').doc(p._id);
+  const snapData = (await snapRef.get()).data();
+
+  // Usando prompt sem o "||" para não sobrescrever automaticamente
+  const newName = prompt('Nome do produto:', snapData.name);
+  const newDesc = prompt('Descrição:', snapData.desc);
+  const newPriceUnit = prompt('Preço por unidade:', snapData.priceUnit);
+  const newPriceKg = prompt('Preço por kg:', snapData.priceKg);
+  const newImg = prompt('URL da imagem:', snapData.img);
+  const newStock = prompt('Quantidade em estoque:', snapData.stock ?? 0);
+
+  await snapRef.update({
+    name: newName !== null && newName !== '' ? newName : snapData.name,
+    desc: newDesc !== null && newDesc !== '' ? newDesc : snapData.desc,
+    priceUnit: newPriceUnit !== null && newPriceUnit !== '' ? Number(newPriceUnit) : snapData.priceUnit,
+    priceKg: newPriceKg !== null && newPriceKg !== '' ? Number(newPriceKg) : snapData.priceKg,
+    img: newImg !== null && newImg !== '' ? newImg : snapData.img,
+    stock: newStock !== null && newStock !== '' ? Number(newStock) : snapData.stock
+  });
+
+  alert('Produto atualizado!');
+  carregarProdutos();      
+  modalDiv.remove();       // fecha o modal antigo
+  renderAdminProducts();   // abre modal atualizado
+});
+
+
+    const btnToggle=row.querySelector(`#btnToggle_${p._id}`);
+    btnToggle.addEventListener('click', async ()=>{
+      const snapRef = db.collection('produtos').doc(p._id);
+      const snapData = (await snapRef.get()).data();
+      const newActive = !snapData.active;
+      await snapRef.update({ active: newActive });
+      carregarProdutos();      
+      modalDiv.remove();       // fecha o painel atual
+      renderAdminProducts();   // abre outro já atualizado
+
+    });
+
+  });
+  const modalDiv=document.createElement('div'); modalDiv.className='modal-backdrop';
+  const modalContent=document.createElement('div'); modalContent.className='modal'; modalContent.appendChild(container);
+  const closeBtn=document.createElement('button'); closeBtn.textContent='❌ Fechar'; closeBtn.className='btn'; closeBtn.style.float='right';
+  closeBtn.addEventListener('click', ()=>{
+  modalDiv.remove();
+  carregarProdutos();  // 🔄 força atualização após fechar o painel admin
+});
+
+  // Botão de liberar/bloquear vendas
+  const vendasBtn = document.createElement('button');
+  vendasBtn.className = 'btn';
+  vendasBtn.style.background = '#2d9cdb';
+  vendasBtn.style.color = '#fff';
+  vendasBtn.style.marginBottom = '10px';
+
+  const vendasStatus = await getSalesStatus();
+  vendasBtn.textContent = vendasStatus ? '🟡 Bloquear Vendas' : '🟢 Liberar Vendas';
+
+  vendasBtn.addEventListener('click', async () => {
+    const novoStatus = !await getSalesStatus();
+    await setSalesStatus(novoStatus);
+
+    alert(novoStatus ? 'Vendas liberadas!' : 'Vendas bloqueadas!');
+    
+    modalDiv.remove();   // fecha painel atual
+    renderAdminProducts(); // reabre atualizado
+  });
+
+  // adiciona acima do botão fechar
+  modalContent.prepend(vendasBtn);
+
+    modalContent.prepend(closeBtn);
+    modalDiv.appendChild(modalContent);
+    document.body.appendChild(modalDiv);
+  }
+
+// =========================
+// EVENTOS
+// =========================
+document.getElementById('adminLink').addEventListener('click', e=>{ e.preventDefault(); renderAdminProducts(); });
+document.getElementById('btnOpenCart').addEventListener('click', e=>{ document.getElementById('cartCard').style.display='block'; document.getElementById('catalogCard').style.display='none'; renderCart(); });
+
+document.getElementById('btnCopyPayload').addEventListener('click', ()=>{
+  const pix = document.getElementById('pixPayload');
+  pix.select(); pix.setSelectionRange(0,99999);
+  document.execCommand('copy');
+  alert('Código PIX copiado!');
+});
+
+// =========================
+// INICIALIZAÇÃO
+// =========================
+
+carregarProdutos();
+renderCart();
+</script>
+</body>
+</html>
