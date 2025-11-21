@@ -508,30 +508,29 @@ function continuarComprando(){ document.getElementById('cartCard').style.display
 // ===============================
 document.getElementById('btnUseLocation').addEventListener('click', () => {
   if (!navigator.geolocation) {
-    alert('Geolocalização não é suportada neste navegador.');
+    alert('Seu navegador não suporta geolocalização!');
     return;
   }
 
   navigator.geolocation.getCurrentPosition(
-    (pos) => {
+    pos => {
       const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-
-      const link = `https://www.google.com/maps?q=${lat},${lng}`;
-
-      document.getElementById('clientLocation').value = link;
-
-      alert('📍 Localização capturada com sucesso!');
+      const lon = pos.coords.longitude;
+      const mapsLink = `https://www.google.com/maps?q=${lat},${lon}`;
+      document.getElementById('clientLocation').value = mapsLink;
+      alert('Localização obtida e preenchida automaticamente!');
     },
-    (err) => {
-      if (err.code === 1) alert('Permissão negada para acessar a localização.');
-      else if (err.code === 2) alert('Não foi possível determinar a localização.');
-      else if (err.code === 3) alert('Tempo excedido ao tentar obter a localização.');
-      else alert('Erro desconhecido ao obter localização.');
+    err => {
+      console.warn(err);
+      // Se não conseguir obter localização, abre Maps para o usuário copiar
+      if (confirm('Não foi possível obter a localização automaticamente. Deseja abrir o Maps para selecionar manualmente?')) {
+        window.open('https://www.google.com/maps', '_blank');
+      }
     },
     {
       enableHighAccuracy: true,
-      timeout: 15000
+      timeout: 10000,
+      maximumAge: 0
     }
   );
 });
