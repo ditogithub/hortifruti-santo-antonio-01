@@ -53,7 +53,7 @@ header {
   }
 }
 
-.product img{ width:100%; height:110px; object-fit:cover; border-radius:6px; }
+.product img{ width:70%; height:100px; object-fit:cover; border-radius:6px; }
 .product .meta{ flex:1; font-size:13px; color:var(--muted); }
 .product .price{ font-weight:700; font-size:14px; }
 .product .controls{ display:flex; gap:6px; align-items:center; justify-content:center; flex-direction:column; }
@@ -125,18 +125,75 @@ header {
     height: 160px; /* opcional: imagem maior */
   }
 }
+/*  botão carrinho css */
+#btnOpenCart {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#btnOpenCart .icon-cart {
+  width: 20px;
+  height: 20px;
+}
+
+/* CSS do badge (bolinha com número)*/
+#btnOpenCart {
+  position: relative;
+}
+
+#cartCount {
+  background: red;
+  color: white;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 50%;
+  position: absolute;
+  top: -5px;
+  right: -5px;
+}
 
 
 </style>
 </head>
 <body>
-<header>
-  <div id="searchContainer">
+<header style="padding: 5px; text-align: center;">
+
+  <!-- LOGO + NOME -->
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+    
+    <!-- LOGO -->
+    <img src="imagens/compras_verduras.png" 
+         alt="Logo" 
+         style="width: 35px; height: auto; border-radius: 8px;">
+    
+    <!-- NOME DA EMPRESA -->
+    <h1 style="margin: 0; font-size: 18px; font-weight: bold;">
+      Hortifruti Santo Antônio
+    </h1>
+  </div>
+
+  <!-- CAMPO DE PESQUISA -->
+  <div id="searchContainer" style="margin-top: 12px;">
     <input id="searchInput" placeholder="🔍 Pesquisar produtos..." />
     <a href="#" id="adminLink">Admin</a>
-    <button id="btnOpenCart">Carrinho</button>
-  </div>
+    <button id="btnOpenCart">
+    <img 
+      src="https://cdn-icons-png.flaticon.com/512/3144/3144456.png" 
+      alt="Carrinho" 
+      class="icon-cart"
+    >
+    Carrinho
+    <span id="cartCount">0</span>
+  </button>
+
+
+      </div>
+
 </header>
+
+
+
 
 <main class="page">
 <div class="layout-coluna">
@@ -478,22 +535,79 @@ async function addToCart(item) {
 
   saveCart();
   renderCart();
+
+  // 🔥 Atualiza o número do carrinho
+  updateCartCount();
 }
 
-function renderCart(){
-  const container=document.getElementById('cartItems'); container.innerHTML='';
-  if(cart.length===0){ container.innerHTML='<div class="small">Nenhum item ainda.</div>'; } else{
-    cart.forEach(it=>{
-      const div=document.createElement('div'); div.className='cart-item';
-      div.innerHTML=`<img src="${escapeHtml(it.img)}"><div class="info"><strong>${escapeHtml(it.name)}</strong><small>${it.mode}</small><small>Qtd: ${it.qty}</small><small>Preço unit: ${formatBRL(it.unitPrice)}</small><small>Total: ${formatBRL(it.unitPrice * it.qty)}</small></div><button class="remove-btn">❌</button>`;
-      div.querySelector('.remove-btn').addEventListener('click',()=>{ cart=cart.filter(c=>c!==it); saveCart(); renderCart(); });
+function updateCartCount() {
+  const count = cart.reduce((total, item) => total + item.qty, 0);
+
+  const badge = document.getElementById('cartCount');
+  if (!badge) return;
+
+  badge.textContent = count;
+  badge.style.display = count > 0 ? "inline-flex" : "none";
+}
+
+
+function renderCart() {
+  const container = document.getElementById('cartItems');
+  container.innerHTML = '';
+
+  if (cart.length === 0) {
+    container.innerHTML = '<div class="small">Nenhum item ainda.</div>';
+  } else {
+    cart.forEach(it => {
+      const div = document.createElement('div');
+      div.className = 'cart-item';
+
+      div.innerHTML = `
+        <img src="${escapeHtml(it.img)}" style="width:110px; height:80px; object-fit:cover;">
+        <div class="info">
+          <strong>${escapeHtml(it.name)}</strong>
+          <small>${it.mode}</small>
+          <small>Qtd: ${it.qty}</small>
+          <small>Preço unit: ${formatBRL(it.unitPrice)}</small>
+          <small>Total: ${formatBRL(it.unitPrice * it.qty)}</small>
+        </div>
+        <button class="remove-btn">Remover</button>
+      `;
+
+      div.querySelector('.remove-btn').addEventListener('click', () => {
+        const qtd = prompt(`Você adicionou ${it.qty} unidades.\nQuantas deseja remover?`);
+        if (!qtd) return;
+
+        const n = Number(qtd);
+        if (isNaN(n) || n <= 0) {
+          alert("Quantidade inválida.");
+          return;
+        }
+
+        if (n >= it.qty) {
+          cart = cart.filter(c => c !== it);
+        } else {
+          it.qty -= n;
+        }
+
+        saveCart();
+        renderCart();
+      });
+
       container.appendChild(div);
     });
   }
-  document.getElementById('cartTotal').innerText='Total: '+formatBRL(calcTotal());
-  const pixEl=document.getElementById('pixPayload');
-  pixEl.value=buildPixEMV(rawPixPhone, merchantName, merchantCity, calcTotal());
+
+  // Atualiza o número no botão do carrinho
+  updateCartCount();
+
+  // Atualiza total e Pix
+  document.getElementById('cartTotal').innerText = 'Total: ' + formatBRL(calcTotal());
+  const pixEl = document.getElementById('pixPayload');
+  if (pixEl) pixEl.value = buildPixEMV(rawPixPhone, merchantName, merchantCity, calcTotal());
 }
+
+
 function limparCarrinho(){ if(confirm('Deseja limpar o carrinho?')){ cart=[]; saveCart(); renderCart(); } }
 function enviarWhats() {
   if (cart.length === 0) {
@@ -587,76 +701,142 @@ document.getElementById('btnUseLocation').addEventListener('click', async () => 
 // ADMIN PANEL
 // =========================
 const ADMIN_PASSWORD = '1234';
-async function renderAdminProducts(){
-  const pwd=prompt('Informe a senha do painel admin:');
-  if(pwd!==ADMIN_PASSWORD){ alert('Senha incorreta!'); return; }
+async function renderAdminProducts() {
+  const pwd = prompt('Informe a senha do painel admin:');
+  if (pwd !== ADMIN_PASSWORD) { alert('Senha incorreta!'); return; }
+
   const snap = await db.collection('produtos').get();
+
   const container = document.createElement('div');
-  container.id='adminProductsList';
-  container.style.display='flex'; container.style.flexDirection='column'; container.style.gap='8px';
-  snap.forEach(doc=>{
-    const p=doc.data(); p._id=doc.id;
-    const row=document.createElement('div'); row.className='admin-row';
-    row.innerHTML=`
-      <div class="meta"><strong>${escapeHtml(p.name)}</strong><br><small>${escapeHtml(p.desc)}</small><br><small>R$${p.priceUnit||''} / unidade, R$${p.priceKg||''} / kg</small></div>
+  container.id = 'adminProductsList';
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.gap = '8px';
+
+  // 🔍 --- CAMPO DE PESQUISA ---
+  const searchBar = document.createElement('input');
+  searchBar.placeholder = "🔍 Pesquisar produto...";
+  searchBar.style.padding = "8px";
+  searchBar.style.marginBottom = "10px";
+  searchBar.style.fontSize = "16px";
+  searchBar.style.border = "1px solid #ccc";
+  searchBar.style.borderRadius = "8px";
+  searchBar.style.width = "100%";
+  container.appendChild(searchBar);
+
+  let productRows = []; // salva todos os produtos para filtrar depois
+
+  snap.forEach(doc => {
+    const p = doc.data();
+    p._id = doc.id;
+
+    const row = document.createElement('div');
+    row.className = 'admin-row';
+    row.innerHTML = `
+      <div class="meta">
+        <strong>${escapeHtml(p.name)}</strong><br>
+        <small>${escapeHtml(p.desc)}</small><br>
+        <small>R$${p.priceUnit || ''} / unidade, R$${p.priceKg || ''} / kg</small>
+      </div>
       <div class="admin-controls">
         <button class="btn" id="btnEdit_${p._id}">✏️ Editar</button>
-        <button class="btn" id="btnToggle_${p._id}">${p.active?'🟢 Ativado':'🔴 Desativado'}</button>
+        <button class="btn" id="btnToggle_${p._id}">${p.active ? '🟢 Ativado' : '🔴 Desativado'}</button>
+        <button class="btn" id="btnDelete_${p._id}">🗑️ Remover</button>
       </div>
     `;
     container.appendChild(row);
 
-    const btnEdit=row.querySelector(`#btnEdit_${p._id}`);
+    // Salva o produto + a linha para filtrar
+    productRows.push({ row, data: p });
+
+    // ---------- BOTÃO EDITAR ----------
+    const btnEdit = row.querySelector(`#btnEdit_${p._id}`);
     btnEdit.addEventListener('click', async () => {
-  const snapRef = db.collection('produtos').doc(p._id);
-  const snapData = (await snapRef.get()).data();
+      const snapRef = db.collection('produtos').doc(p._id);
+      const snapData = (await snapRef.get()).data();
 
-  // Usando prompt sem o "||" para não sobrescrever automaticamente
-  const newName = prompt('Nome do produto:', snapData.name);
-  const newDesc = prompt('Descrição:', snapData.desc);
-  const newPriceUnit = prompt('Preço por unidade:', snapData.priceUnit);
-  const newPriceKg = prompt('Preço por kg:', snapData.priceKg);
-  const newImg = prompt('URL da imagem:', snapData.img);
-  const newStock = prompt('Quantidade em estoque:', snapData.stock ?? 0);
+      const newName = prompt('Nome do produto:', snapData.name);
+      const newDesc = prompt('Descrição:', snapData.desc);
+      const newPriceUnit = prompt('Preço por unidade:', snapData.priceUnit);
+      const newPriceKg = prompt('Preço por kg:', snapData.priceKg);
+      const newImg = prompt('URL da imagem:', snapData.img);
+      const newStock = prompt('Quantidade em estoque:', snapData.stock ?? 0);
 
-  await snapRef.update({
-    name: newName !== null && newName !== '' ? newName : snapData.name,
-    desc: newDesc !== null && newDesc !== '' ? newDesc : snapData.desc,
-    priceUnit: newPriceUnit !== null && newPriceUnit !== '' ? Number(newPriceUnit) : snapData.priceUnit,
-    priceKg: newPriceKg !== null && newPriceKg !== '' ? Number(newPriceKg) : snapData.priceKg,
-    img: newImg !== null && newImg !== '' ? newImg : snapData.img,
-    stock: newStock !== null && newStock !== '' ? Number(newStock) : snapData.stock
-  });
+      await snapRef.update({
+        name: newName || snapData.name,
+        desc: newDesc || snapData.desc,
+        priceUnit: newPriceUnit ? Number(newPriceUnit) : snapData.priceUnit,
+        priceKg: newPriceKg ? Number(newPriceKg) : snapData.priceKg,
+        img: newImg || snapData.img,
+        stock: newStock ? Number(newStock) : snapData.stock
+      });
 
-  alert('Produto atualizado!');
-  carregarProdutos();      
-  modalDiv.remove();       // fecha o modal antigo
-  renderAdminProducts();   // abre modal atualizado
-});
+      alert('Produto atualizado!');
+      carregarProdutos();
+      modalDiv.remove();
+      renderAdminProducts();
+    });
 
-
-    const btnToggle=row.querySelector(`#btnToggle_${p._id}`);
-    btnToggle.addEventListener('click', async ()=>{
+    // ---------- BOTÃO ATIVAR/DESATIVAR ----------
+    const btnToggle = row.querySelector(`#btnToggle_${p._id}`);
+    btnToggle.addEventListener('click', async () => {
       const snapRef = db.collection('produtos').doc(p._id);
       const snapData = (await snapRef.get()).data();
       const newActive = !snapData.active;
       await snapRef.update({ active: newActive });
-      carregarProdutos();      
-      modalDiv.remove();       // fecha o painel atual
-      renderAdminProducts();   // abre outro já atualizado
-
+      carregarProdutos();
+      modalDiv.remove();
+      renderAdminProducts();
     });
 
-  });
-  const modalDiv=document.createElement('div'); modalDiv.className='modal-backdrop';
-  const modalContent=document.createElement('div'); modalContent.className='modal'; modalContent.appendChild(container);
-  const closeBtn=document.createElement('button'); closeBtn.textContent='❌ Fechar'; closeBtn.className='btn'; closeBtn.style.float='right';
-  closeBtn.addEventListener('click', ()=>{
-  modalDiv.remove();
-  carregarProdutos();  // 🔄 força atualização após fechar o painel admin
-});
+    // ---------- BOTÃO REMOVER ----------
+    const btnDelete = row.querySelector(`#btnDelete_${p._id}`);
+    btnDelete.addEventListener('click', async () => {
+      if (!confirm('Tem certeza que deseja excluir este produto?')) return;
 
-  // Botão de liberar/bloquear vendas
+      await db.collection('produtos').doc(p._id).delete();
+
+      alert('Produto removido com sucesso!');
+      carregarProdutos();
+      modalDiv.remove();
+      renderAdminProducts();
+    });
+  });
+
+  // 🔍 --- LÓGICA DO FILTRO ---
+  searchBar.addEventListener("input", () => {
+    const text = searchBar.value.toLowerCase();
+
+    productRows.forEach(prod => {
+      const name = prod.data.name.toLowerCase();
+      const desc = (prod.data.desc || "").toLowerCase();
+
+      prod.row.style.display =
+        name.includes(text) || desc.includes(text)
+          ? "flex"
+          : "none";
+    });
+  });
+
+  // === MONTAGEM DO MODAL ===
+  const modalDiv = document.createElement('div');
+  modalDiv.className = 'modal-backdrop';
+
+  const modalContent = document.createElement('div');
+  modalContent.className = 'modal';
+  modalContent.appendChild(container);
+
+  // --- Botão Fechar ---
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '❌ Fechar';
+  closeBtn.className = 'btn';
+  closeBtn.style.float = 'right';
+  closeBtn.addEventListener('click', () => {
+    modalDiv.remove();
+    carregarProdutos();
+  });
+
+  // --- Botão Bloquear / Liberar Vendas ---
   const vendasBtn = document.createElement('button');
   vendasBtn.className = 'btn';
   vendasBtn.style.background = '#2d9cdb';
@@ -671,18 +851,19 @@ async function renderAdminProducts(){
     await setSalesStatus(novoStatus);
 
     alert(novoStatus ? 'Vendas liberadas!' : 'Vendas bloqueadas!');
-    
-    modalDiv.remove();   // fecha painel atual
-    renderAdminProducts(); // reabre atualizado
+
+    modalDiv.remove();
+    renderAdminProducts();
   });
 
-  // adiciona acima do botão fechar
+  // Ordem correta
+  modalContent.prepend(closeBtn);
   modalContent.prepend(vendasBtn);
 
-    modalContent.prepend(closeBtn);
-    modalDiv.appendChild(modalContent);
-    document.body.appendChild(modalDiv);
-  }
+  modalDiv.appendChild(modalContent);
+  document.body.appendChild(modalDiv);
+}
+
 
 // =========================
 // EVENTOS
