@@ -794,31 +794,42 @@ askAdminPassword(pwd => {
 
     // ---------- BOTÃO EDITAR ----------
     const btnEdit = row.querySelector(`#btnEdit_${p._id}`);
-    btnEdit.addEventListener('click', async () => {
-      const snapRef = db.collection('produtos').doc(p._id);
-      const snapData = (await snapRef.get()).data();
+btnEdit.addEventListener('click', async () => {
+  const snapRef = db.collection('produtos').doc(p._id);
+  const snapData = (await snapRef.get()).data();
 
-      const newName = prompt('Nome do produto:', snapData.name);
-      const newDesc = prompt('Descrição:', snapData.desc);
-      const newPriceUnit = prompt('Preço por unidade:', snapData.priceUnit);
-      const newPriceKg = prompt('Preço por kg:', snapData.priceKg);
-      const newImg = prompt('URL da imagem:', snapData.img);
-      const newStock = prompt('Quantidade em estoque:', snapData.stock ?? 0);
+  const newName = prompt('Nome do produto:', snapData.name);
+  const newDesc = prompt('Descrição:', snapData.desc);
+  const newPriceUnit = prompt('Preço por unidade:', snapData.priceUnit ?? '');
+  const newPriceKg = prompt('Preço por kg:', snapData.priceKg ?? '');
+  const newImg = prompt('URL da imagem:', snapData.img);
+  const newStock = prompt('Quantidade em estoque:', snapData.stock ?? '');
 
-      await snapRef.update({
-        name: newName || snapData.name,
-        desc: newDesc || snapData.desc,
-        priceUnit: newPriceUnit ? Number(newPriceUnit) : snapData.priceUnit,
-        priceKg: newPriceKg ? Number(newPriceKg) : snapData.priceKg,
-        img: newImg || snapData.img,
-        stock: newStock ? Number(newStock) : snapData.stock
-      });
+  await snapRef.update({
+    name: newName !== '' && newName !== null ? newName : snapData.name,
+    desc: newDesc !== '' && newDesc !== null ? newDesc : snapData.desc,
 
-      alert('Produto atualizado!');
-      carregarProdutos();
-      modalDiv.remove();
-      renderAdminProducts();
-    });
+    // Corrigido: só altera se digitou algo
+    priceUnit: newPriceUnit !== '' && newPriceUnit !== null
+      ? Number(newPriceUnit)
+      : snapData.priceUnit,
+
+    priceKg: newPriceKg !== '' && newPriceKg !== null
+      ? Number(newPriceKg)
+      : snapData.priceKg,
+
+    img: newImg !== '' && newImg !== null ? newImg : snapData.img,
+
+    stock: newStock !== '' && newStock !== null
+      ? Number(newStock)
+      : snapData.stock
+  });
+
+  alert('Produto atualizado!');
+  carregarProdutos();
+  modalDiv.remove();
+  renderAdminProducts();
+});
 
     // ---------- BOTÃO ATIVAR/DESATIVAR ----------
     const btnToggle = row.querySelector(`#btnToggle_${p._id}`);
