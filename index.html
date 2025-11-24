@@ -8,10 +8,12 @@
 <!-- Firebase (compat) -->
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
 
 <style>
 :root{
-  --accent:#27ae60;
+  --accent:#df4b10;
   --blue:#2d9cdb;
   --danger:#e74c3c;
   --card:#ffffff;
@@ -19,7 +21,7 @@
 }
 body { font-family: Arial, sans-serif; margin:0; background:#f7f7f7; color:#222; }
 header {
-  background: linear-gradient(90deg, #27ae60, #2ecc71);
+  background: linear-gradient(90deg, #f79502, #04b84f);
   color: white; padding:8px 14px; box-shadow:0 3px 8px rgba(0,0,0,0.08);
   position: sticky; top:0; z-index:1000; display:flex; gap:12px; align-items:center; justify-content:space-between;
 }
@@ -155,6 +157,7 @@ header {
 
 
 </style>
+
 </head>
 <body>
 <header style="padding: 5px; text-align: center;">
@@ -163,9 +166,9 @@ header {
   <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
     
     <!-- LOGO -->
-    <img src="imagens/compras_verduras.png" 
+    <img src="imagens/logo.png" 
          alt="Logo" 
-         style="width: 35px; height: auto; border-radius: 8px;">
+         style="width: 48px; height: auto; border-radius: 8px;">
     
     <!-- NOME DA EMPRESA -->
     <h1 style="margin: 0; font-size: 18px; font-weight: bold;">
@@ -702,8 +705,48 @@ document.getElementById('btnUseLocation').addEventListener('click', async () => 
 // =========================
 const ADMIN_PASSWORD = '1234';
 async function renderAdminProducts() {
-  const pwd = prompt('Informe a senha do painel admin:');
+  // Cria um modal simples para pedir a senha
+function askAdminPassword(callback) {
+  const modal = document.createElement('div');
+  modal.style.position = 'fixed';
+  modal.style.inset = '0';
+  modal.style.background = 'rgba(0,0,0,0.5)';
+  modal.style.display = 'flex';
+  modal.style.alignItems = 'center';
+  modal.style.justifyContent = 'center';
+  modal.style.zIndex = 3000;
+
+  const box = document.createElement('div');
+  box.style.background = '#fff';
+  box.style.padding = '20px';
+  box.style.borderRadius = '10px';
+  box.style.textAlign = 'center';
+  box.innerHTML = `
+    <h2>Senha do Painel Admin</h2>
+    <input type="password" id="adminPwdInput" placeholder="Digite a senha" style="padding:8px; width:200px; margin-top:10px; border-radius:6px; border:1px solid #ccc;">
+    <br><br>
+    <button id="adminPwdBtn" class="btn" style="background:#27ae60; color:#fff;">Entrar</button>
+  `;
+  modal.appendChild(box);
+  document.body.appendChild(modal);
+
+  // ⚡ Aqui fazemos o input receber foco automaticamente
+  const input = document.getElementById('adminPwdInput');
+  input.focus();
+
+  document.getElementById('adminPwdBtn').addEventListener('click', () => {
+    const value = document.getElementById('adminPwdInput').value;
+    modal.remove();
+    callback(value);
+  });
+}
+
+// Usando
+askAdminPassword(pwd => {
   if (pwd !== ADMIN_PASSWORD) { alert('Senha incorreta!'); return; }
+  renderAdminProductsContent(); // move todo o restante do renderAdminProducts para aqui
+});
+
 
   const snap = await db.collection('produtos').get();
 
@@ -860,8 +903,50 @@ async function renderAdminProducts() {
   modalContent.prepend(closeBtn);
   modalContent.prepend(vendasBtn);
 
+
+  // --- Botão Cadastrar Produto ---
+  const addBtn = document.createElement('button');
+addBtn.className = 'btn';
+addBtn.style.background = '#27ae60';
+addBtn.style.color = '#fff';
+addBtn.style.marginBottom = '10px';
+// ⚡ Usando ícone do Font Awesome antes do texto
+addBtn.innerHTML = '<i class="fa-solid fa-plus" style="margin-right:6px;"></i> Cadastrar Produto';
+
+addBtn.addEventListener('click', async () => {
+  const name = prompt('Nome do produto:');
+  if (!name) return alert('Nome do produto é obrigatório!');
+
+  const desc = prompt('Descrição:');
+  const priceUnit = prompt('Preço por unidade:');
+  const priceKg = prompt('Preço por kg:');
+  const img = prompt('URL da imagem:');
+  const stock = prompt('Quantidade em estoque:');
+
+  await db.collection('produtos').add({
+    name,
+    desc,
+    priceUnit: priceUnit ? Number(priceUnit) : 0,
+    priceKg: priceKg ? Number(priceKg) : 0,
+    img: img || '',
+    stock: stock ? Number(stock) : 0,
+    active: true
+  });
+
+  alert('Produto cadastrado com sucesso!');
+  modalDiv.remove();
+  renderAdminProducts();
+});
+
+
   modalDiv.appendChild(modalContent);
   document.body.appendChild(modalDiv);
+
+    // Ordem sugerida: primeiro botão Fechar, depois Vendas, depois Adicionar Produto
+    modalContent.prepend(closeBtn);
+    modalContent.prepend(vendasBtn);
+    modalContent.prepend(addBtn);
+
 }
 
 
