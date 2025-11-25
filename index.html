@@ -828,7 +828,8 @@ askAdminPassword(pwd => {
     row.className = 'admin-row';
     row.innerHTML = `
       <img src="${p.img}" 
-       style="width:90px; height:70px; object-fit:cover; border-radius:8px; border:1px solid #ccc;">
+     style="width:32px; height:32px; object-fit:cover; border-radius:6px; border:1px solid #ccc;">
+
       <div class="meta">
         <strong>${escapeHtml(p.name)}</strong><br>
         <small>${escapeHtml(p.desc)}</small><br>
