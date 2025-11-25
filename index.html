@@ -721,25 +721,59 @@ function askAdminPassword(callback) {
   box.style.padding = '20px';
   box.style.borderRadius = '10px';
   box.style.textAlign = 'center';
+  box.style.position = "relative";
   box.innerHTML = `
+    <button id="adminCloseBtn" 
+      style="
+        position:absolute;
+        top:5px;
+        right:5px;
+        background:#e74c3c;
+        border:none;
+        color:#fff;
+        padding:5px 10px;
+        border-radius:4px;
+        cursor:pointer;
+      ">X</button>
+
     <h2>Senha do Painel Admin</h2>
-    <input type="password" id="adminPwdInput" placeholder="Digite a senha" style="padding:8px; width:200px; margin-top:10px; border-radius:6px; border:1px solid #ccc;">
+    <input type="password" id="adminPwdInput" placeholder="Digite a senha" 
+      style="padding:8px; width:200px; margin-top:10px; border-radius:6px; border:1px solid #ccc;">
     <br><br>
-    <button id="adminPwdBtn" class="btn" style="background:#27ae60; color:#fff;">Entrar</button>
+    <button id="adminPwdBtn" class="btn" style="background:#27ae60; color:#fff;">
+      Entrar
+    </button>
   `;
   modal.appendChild(box);
   document.body.appendChild(modal);
 
-  // ⚡ Aqui fazemos o input receber foco automaticamente
-  const input = document.getElementById('adminPwdInput');
-  input.focus();
+  // Foco automático
+  document.getElementById('adminPwdInput').focus();
 
+  // 🔴 BOTÃO FECHAR
+ document.getElementById("adminCloseBtn").addEventListener("click", () => {
+  modal.remove(); // Fecha o modal da senha
+
+  // 🔥 Fecha também o modal grande (painel admin) se existir
+  const adminMainModal = document.querySelector(".modal-backdrop");
+  if (adminMainModal) adminMainModal.remove();
+});
+
+
+  // 🔑 BOTÃO ENTRAR
   document.getElementById('adminPwdBtn').addEventListener('click', () => {
     const value = document.getElementById('adminPwdInput').value;
+
+    if (value !== ADMIN_PASSWORD) {
+      alert('Senha incorreta!');
+      return;
+    }
+
     modal.remove();
     callback(value);
   });
 }
+
 
 // Usando
 askAdminPassword(pwd => {
