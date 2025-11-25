@@ -834,8 +834,16 @@ btnEdit.addEventListener('click', async () => {
 
   const newName = prompt('Nome do produto:', snapData.name);
   const newDesc = prompt('Descrição:', snapData.desc);
-  const newPriceUnit = prompt('Preço por unidade:', snapData.priceUnit ?? '');
-  const newPriceKg = prompt('Preço por kg:', snapData.priceKg ?? '');
+  const newPriceUnit = prompt(
+  'Preço por unidade:',
+  snapData.priceUnit ? snapData.priceUnit : ''
+);
+
+const newPriceKg = prompt(
+  'Preço por kg:',
+  snapData.priceKg ? snapData.priceKg : ''
+);
+
   const newImg = prompt('URL da imagem:', snapData.img);
   const newStock = prompt('Quantidade em estoque:', snapData.stock ?? '');
 
@@ -844,13 +852,14 @@ btnEdit.addEventListener('click', async () => {
     desc: newDesc !== '' && newDesc !== null ? newDesc : snapData.desc,
 
     // Corrigido: só altera se digitou algo
-    priceUnit: newPriceUnit !== '' && newPriceUnit !== null
-      ? Number(newPriceUnit)
-      : snapData.priceUnit,
+    priceUnit: newPriceUnit === '' || newPriceUnit === null
+    ? null
+    : Number(newPriceUnit),
 
-    priceKg: newPriceKg !== '' && newPriceKg !== null
-      ? Number(newPriceKg)
-      : snapData.priceKg,
+    priceKg: newPriceKg === '' || newPriceKg === null
+    ? null
+    : Number(newPriceKg),
+
 
     img: newImg !== '' && newImg !== null ? newImg : snapData.img,
 
